@@ -1,6 +1,6 @@
 # geo-content-engine
 
-A Claude Code skill that researches a topic, drafts an article grounded in that research, and refuses to publish it until it passes a strict anti-AI-writing gate.
+A Claude Code skill that researches a topic, drafts an article grounded in that research, and generates artciles with 80% succes rate of being cited on major LLMs like ChatGPT, Google AI Overviews, AI Mode, etc. 
 
 It was built and run in production on a large content site, where it generated hundreds of published articles. This is a sanitized, generic version. The `canon/` rules are examples you replace with your own brand's.
 
