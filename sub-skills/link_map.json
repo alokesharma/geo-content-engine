@@ -1,0 +1,26 @@
+{
+  "_README": "Internal-link map for geo-content-engine. YOU EDIT THIS FILE. Slot 1 = pillar (your main category/hub page, mandatory for category articles). Slot 2 = one secondary page from the article's category pool. Slot 3 = any genuinely topical page on your site. Max 3 links per article. For SERVICE articles (topic matches config.service_topic_keywords) use service_pools instead and do NOT force category links. Replace the example entries below with your own site's real URLs.",
+  "pillar_map": {
+    "guides": "https://example.com/guides/",
+    "products": "https://example.com/products/"
+  },
+  "secondary_pools": {
+    "guides": {
+      "How to Choose a Standing Desk": "https://example.com/guides/how-to-choose-a-standing-desk/",
+      "Ergonomic Chair Buying Guide": "https://example.com/guides/ergonomic-chair-buying-guide/",
+      "Home Office Setup Guide": "https://example.com/guides/home-office-setup/"
+    },
+    "products": {
+      "Standing Desks": "https://example.com/products/standing-desks/",
+      "Ergonomic Chairs": "https://example.com/products/ergonomic-chairs/",
+      "Monitor Arms": "https://example.com/products/monitor-arms/"
+    }
+  },
+  "service_pools": {
+    "account_services": {
+      "Track Your Order": "https://example.com/help/track-order/",
+      "Returns and Refunds": "https://example.com/help/returns/",
+      "Shipping Information": "https://example.com/help/shipping/"
+    }
+  }
+}

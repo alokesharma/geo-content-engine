@@ -1,0 +1,17 @@
+# Run outputs (generated articles, never commit)
+runs/
+
+# Secrets and credentials
+.env
+*token*.json
+credentials.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Rendered docs
+*.docx
+
+# OS
+.DS_Store
