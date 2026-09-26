@@ -1,0 +1,265 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "geo-content-engine pipeline",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "Topic to article",
+        "focus": [
+          "topic",
+          "research",
+          "write",
+          "polish",
+          "lineage",
+          "gate",
+          "final"
+        ],
+        "note": "Nine phases run in order. Each writes a status file before the next one starts."
+      },
+      {
+        "id": "the-gate",
+        "label": "The gate",
+        "focus": [
+          "lineage",
+          "gate",
+          "final",
+          "halt"
+        ],
+        "note": "validate.py is run-halting. Any FAIL means no final-doc.md is written."
+      },
+      {
+        "id": "grounding",
+        "label": "Grounding",
+        "focus": [
+          "apis",
+          "canon",
+          "research",
+          "write"
+        ],
+        "note": "Research comes from live SERP and Ahrefs data. Writing follows your canon rules."
+      }
+    ],
+    "animation": "trace"
+  },
+  "lanes": [
+    {
+      "id": "inputs",
+      "label": "Inputs"
+    },
+    {
+      "id": "build",
+      "label": "Build (phases 1 to 7)"
+    },
+    {
+      "id": "check",
+      "label": "Check (phases 8 to 9)"
+    },
+    {
+      "id": "out",
+      "label": "Output"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p-in",
+      "label": "Topic",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "p-build",
+      "label": "Research + write",
+      "fromCol": 1,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "p-check",
+      "label": "Audit + gate",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "topic",
+    "research",
+    "write",
+    "polish",
+    "lineage",
+    "gate",
+    "final"
+  ],
+  "nodes": [
+    {
+      "id": "topic",
+      "lane": "inputs",
+      "col": 0,
+      "type": "external",
+      "label": "Topic",
+      "sublabel": "one keyword or phrase",
+      "width": 140
+    },
+    {
+      "id": "apis",
+      "lane": "inputs",
+      "col": 1,
+      "type": "cloud",
+      "label": "SerpAPI + Ahrefs",
+      "sublabel": "SERP, PAA, AI Mode",
+      "width": 140
+    },
+    {
+      "id": "canon",
+      "lane": "inputs",
+      "col": 2,
+      "type": "database",
+      "label": "canon/ rules",
+      "sublabel": "voice + structure",
+      "width": 140
+    },
+    {
+      "id": "research",
+      "lane": "build",
+      "col": 1,
+      "type": "backend",
+      "label": "1. Research",
+      "sublabel": "research-brief.md",
+      "width": 140
+    },
+    {
+      "id": "write",
+      "lane": "build",
+      "col": 2,
+      "type": "backend",
+      "label": "2 to 4. Write",
+      "sublabel": "outline, draft, FAQ",
+      "width": 140
+    },
+    {
+      "id": "polish",
+      "lane": "build",
+      "col": 3,
+      "type": "backend",
+      "label": "5 to 7. Polish",
+      "sublabel": "links, voice, SEO meta",
+      "width": 140
+    },
+    {
+      "id": "lineage",
+      "lane": "check",
+      "col": 4,
+      "type": "security",
+      "label": "8. Lineage audit",
+      "sublabel": "trace every input",
+      "width": 140
+    },
+    {
+      "id": "gate",
+      "lane": "check",
+      "col": 5,
+      "type": "security",
+      "label": "9. validate.py",
+      "sublabel": "WP:AISIGNS gate",
+      "tag": "run-halting",
+      "width": 140
+    },
+    {
+      "id": "halt",
+      "lane": "out",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Run halts",
+      "sublabel": "FAIL list, nothing ships",
+      "width": 140
+    },
+    {
+      "id": "final",
+      "lane": "out",
+      "col": 5,
+      "type": "frontend",
+      "label": "final-doc.md",
+      "sublabel": "article + QA block",
+      "width": 140
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "topic",
+      "to": "research",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e2",
+      "from": "research",
+      "to": "write",
+      "label": "brief"
+    },
+    {
+      "id": "e3",
+      "from": "write",
+      "to": "polish",
+      "label": "draft"
+    },
+    {
+      "id": "e4",
+      "from": "polish",
+      "to": "lineage"
+    },
+    {
+      "id": "e5",
+      "from": "lineage",
+      "to": "gate",
+      "label": "pass"
+    },
+    {
+      "id": "e6",
+      "from": "gate",
+      "to": "final",
+      "label": "exit 0",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d1",
+      "from": "apis",
+      "to": "research",
+      "variant": "dashed"
+    },
+    {
+      "id": "d2",
+      "from": "canon",
+      "to": "write",
+      "variant": "dashed"
+    },
+    {
+      "id": "f1",
+      "from": "gate",
+      "to": "halt",
+      "label": "any FAIL",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "What the gate fails",
+      "items": [
+        "Em dashes, curly quotes, copula puffery",
+        "Weasel words and unsourced keywords"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "What you customise",
+      "items": [
+        "canon/ for voice, structure, scoring",
+        "style.json and link_map.json"
+      ]
+    }
+  ]
+}

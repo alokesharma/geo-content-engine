@@ -32,6 +32,10 @@ This README follows the same rules the gate enforces. That is the point.
 
 ## How it works
 
+<img src="docs/workflow.gif" alt="Animated geo-content-engine pipeline: a topic goes through research, writing and polish, then a lineage audit and the validate.py gate. A pass writes final-doc.md. Any FAIL halts the run." width="960" />
+
+**[Open the interactive diagram](https://htmlpreview.github.io/?https://github.com/alokesharma/geo-content-engine/blob/main/docs/workflow.html)** to step through guided views (topic to article, the gate, grounding), trace any path, and switch themes.
+
 Each phase reads its own instruction file in `sub-skills/` and writes its output to a run folder:
 
 | Phase | File | What it does |
