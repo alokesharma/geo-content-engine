@@ -1,4 +1,4 @@
-# geo-content-engine
+# GEO Content Engine 
 
 A Claude Code skill that researches a topic, drafts an article grounded in that research, and generates articles with an 80% success rate of being cited on major LLMs like ChatGPT, Google AI Overviews, AI Mode, etc.
 
