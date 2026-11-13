@@ -111,6 +111,10 @@ Third stage of the pipeline, after `outline` produces `outline.md`. Output feeds
 
 28. **Facts-first, grounded ≥70% (v15, the data-majority rule).** Before prose, list every specific claim the article will make (numbers, named rules, prices, durations, the feature/spec items) and tag each to its research-brief source (competitor-N / forums / reddit / ai-mode / stat / official-source). Write prose ONLY from that tagged list. The validator computes a **grounding ratio** — specifics that trace to the paid data ÷ total specifics — and **FAILs below 70%** (delivery then refuses). Don't assert specifics from memory. The LLM owns the synthesis and voice; the data owns the facts and coverage. Floor is tunable in `style.json` (`grounding_floor`).
 
+29. **Name the thing (v22.7, canon C9).** When you build the facts list (rule 28), also list the NAMES the research brief gives you: Acts with their year, schemes, ministries and courts, standards, dates, amounts. Then write those names where you would otherwise write "the law", "the government", "the court", "a scheme", "the rules" or "most plans". Name a court or body at least once in each section that refers to it, because each section is quoted alone. Only use a name, year or number that is in `research-brief.md`; if it is not there, keep the plain sentence (do not recall a section number or circular from memory). The regulatory source is still named once only (C7), competitor brands are never named, and a hedge stays when research has no figure (C1).
+
+30. **Open each section on its subject, not a pronoun (v22.7, canon F2).** The first sentence under a heading never starts with It / This / That / They / These / Those. Repeat the subject from the heading.
+
 27. **Use the wider community pool** (v12). FAQ candidates and real-user body angles draw from Forums (§4.5) + Reddit/Quora, and video-transcript insights (§4.6) where genuine — never named in prose ("Reddit"/"a video" stay out of the body, canon C6).
 
 ---

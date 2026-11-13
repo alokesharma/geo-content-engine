@@ -263,6 +263,51 @@
   ],
   "_banned_facts_README": "Example config — replace with your own. Factual claims that are no longer true under current rules. Body prose stating these as CURRENT (no historical qualifier within ~10 words: was/were/used to be/previously/earlier/formerly/changed from/reduced from/down from) blocks publish. Add {pattern, fix} entries for stale facts your reviewers keep catching.",
   "banned_facts": [],
+  "_generic_reference_README": "v22.7 (AEO: name the thing, canon C9). EXAMPLE CONFIG: the `unless` lists name Indian laws, schemes and bodies from the original insurance deployment; replace them with the named things of your own domain. Vague stand-ins where a named law, scheme, body, year or number would make the sentence quotable by an AI answer engine. FLAG only (generic_references in validate.py), never blocks publish. Each entry: pattern = regex matched case-insensitively on body prose; kind = 'unnamed authority' or 'vague quantity'; unless = optional CASE-SENSITIVE regex, if the SAME paragraph matches it the phrase is fine (the thing is already named there); scope = optional, set to 'section' to accept the name anywhere under the same heading instead of only the same paragraph (used for 'the court' / 'the government', which would otherwise be flagged in every paragraph of a ruling explainer); fix = what to do. A fix may only use names/numbers found in research-brief.md; if research has none, the sentence stays as written. Team-editable: add the stand-in you keep seeing. 'the regulator' and 'experts say / studies show' are NOT listed here because regulator_named and ai_vague_attr already catch them.",
+  "generic_reference_patterns": [
+    {
+      "pattern": "\\bthe law\\b|\\bas per (?:the )?(?:law|rules|norms|guidelines|regulations)\\b|\\bthe (?:rules|regulations|guidelines|norms)\\b",
+      "kind": "unnamed authority",
+      "unless": "\\bAct\\b|\\bRules, (?:19|20)\\d\\d|\\bRegulations?, (?:19|20)\\d\\d|\\bSection \\d|\\bIRDAI\\b|\\bCode\\b",
+      "fix": "name the Act/Rules and year from the research brief (e.g. 'the Motor Vehicles Act, 1988'); in an FAQ answer name the Act only, never a section or circular number (F1)"
+    },
+    {
+      "pattern": "\\bthe (?:government|authorities|ministry|department)\\b",
+      "scope": "section",
+      "kind": "unnamed authority",
+      "unless": "\\bMinistry of\\b|\\bGovernment of\\b|\\b(?:Central|State|Union) Government\\b|\\bDepartment of\\b|\\bMoRTH\\b|\\bNHA\\b|\\bRTO\\b|\\bAuthority of India\\b",
+      "fix": "name the body the research brief names (ministry, state government, authority)"
+    },
+    {
+      "pattern": "\\bthe (?:court|ruling|judgment|judgement|verdict|order)\\b",
+      "scope": "section",
+      "kind": "unnamed authority",
+      "unless": "\\bSupreme Court\\b|\\bHigh Court\\b|\\bTribunal\\b|\\bCommission\\b|\\bOmbudsman\\b",
+      "fix": "name the court or forum in this paragraph (a paragraph must stand alone when quoted)"
+    },
+    {
+      "pattern": "\\b(?:a|the) (?:government |public |state |central )?scheme\\b",
+      "kind": "unnamed authority",
+      "unless": "\\bAyushman\\b|\\bPM-JAY\\b|\\bPMJAY\\b|\\bCGHS\\b|\\bESIC?\\b|\\bYojana\\b|\\b[A-Z][A-Za-z-]+ Scheme\\b|\\bMission\\b",
+      "fix": "name the scheme (e.g. 'Ayushman Bharat PM-JAY')"
+    },
+    {
+      "pattern": "\\ba (?:recent |new |latest )?(?:study|report|survey|circular|notification|amendment)\\b",
+      "kind": "unnamed authority",
+      "unless": "\\b(?:19|20)\\d\\d\\b|\\bFY ?\\d\\d",
+      "fix": "name the publisher and year from the research brief, or cut the sentence"
+    },
+    {
+      "pattern": "\\bindustry (?:data|estimates|figures|numbers)\\b",
+      "kind": "unnamed authority",
+      "fix": "name the publisher and year from the research brief, or cut the sentence"
+    },
+    {
+      "pattern": "\\b(?:many|some|several|various|certain|most|a few|few|numerous) (?:insurers|insurance companies|companies|plans|policies|hospitals|states|cities|garages|workshops|providers|brands|manufacturers|carmakers|models|banks|lenders)\\b",
+      "kind": "vague quantity",
+      "fix": "give the number or name the type if the research brief has one (D3); if research has no figure, the hedge stands (C1), leave it"
+    }
+  ],
   "config": {
     "wordfreq_min_zipf": 3.0,
     "wordfreq_min_len": 7,

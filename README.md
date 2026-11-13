@@ -8,7 +8,7 @@ It was built and run in production on a large content site, where it generated h
 
 Give it a topic. It runs nine phases end to end and writes a finished article to a local Markdown file:
 
-1. **Research** real SERP, People-Also-Ask, Google AI Mode, competitor pages, and community threads. It never writes from the model's memory.
+1. **Research** real SERP, People-Also-Ask, Google AI Mode, competitor pages (fetched directly, then through Jina Reader, then a headless browser, so bot walls rarely cost a read), and community threads. It never writes from the model's memory.
 2. **Draft** an article grounded in that research, targeting the length and coverage the top-ranking pages actually have.
 3. **Gate** the draft. If it reads like AI or breaks a canon rule, the run stops and nothing ships.
 
@@ -25,6 +25,8 @@ The gate encodes Wikipedia's field guide "Signs of AI writing" (WP:AISIGNS). A f
 - **Weasel attribution.** "experts say", "studies suggest" with no named source fail.
 - **Negative parallelism.** "not just X, but Y" is a classic tell and gets caught.
 - **Curly quotes and significance padding.** Both fail.
+
+Two checks are advisory flags rather than fails, because fixing them depends on what the research found: vague stand-ins like "the law" or "most plans" where a named Act, scheme or number would make the sentence quotable, and section or FAQ openers that start with "It" or "This" and lose their subject once an answer engine lifts them out of the page.
 
 It also checks research grounding, keyword provenance (every keyword traces to a real captured source, never invented), heading source, and internal-link quality. A draft that cannot prove where its facts came from does not ship.
 
@@ -75,14 +77,15 @@ cp .env.example .env
 set -a; source .env; set +a
 ```
 
-You need two paid APIs:
+You need one paid API, and two more are optional:
 
 - **SerpAPI** (https://serpapi.com) for SERP, PAA, AI Mode, Forums, News, Videos.
-- **Ahrefs API v3** (https://ahrefs.com) for related terms and question terms. This is optional if you call Ahrefs through connected MCP tools instead of the REST API.
+- **Ahrefs API v3** (https://ahrefs.com) for related terms and question terms. Optional if you call Ahrefs through connected MCP tools instead of the REST API.
+- **Jina Reader** (https://jina.ai) for competitor pages that block a direct fetch. Optional: it works with no key at a lower rate limit, which is enough for one article at a time. A free key raises the limit for batch runs.
 
 Keys are read from the environment. Nothing is hardcoded, and `.env` is git-ignored.
 
-**Common first-run issue:** if research returns empty, confirm both keys are exported in the shell you launched Claude Code from (`echo $SERPAPI_KEY`). A missing key is the usual cause.
+**Common first-run issue:** if research returns empty, confirm the keys are exported in the shell you launched Claude Code from (`echo $SERPAPI_KEY`). A missing key is the usual cause.
 
 ## Run it
 

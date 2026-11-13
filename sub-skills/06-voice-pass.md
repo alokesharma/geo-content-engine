@@ -91,6 +91,9 @@ Apply these moves to each flagged line:
 - **Mechanical fixes** (`ai_dash`, `ai_curly`, FAIL — auto-fixable): em/en dashes → comma/colon/period; curly quotes/apostrophes (" " ' ') → straight ASCII (" '). Do these as a find-replace before re-validating.
 - **AI vocabulary** (`banned_words`, FAIL): delve, underscore, tapestry, robust, leverage, seamless, showcase, vibrant, myriad, plethora, bolster, garner, intricate, meticulous → use the plain swap from `style.json`.
 - **FLAG-level (review, don't block):** rule-of-three triplets ("vibrant, diverse, and dynamic" → keep one, or rewrite); knowledge-cutoff/"not documented" disclaimers (delete — they're speculative); the "Despite its X, faces challenges… / Future Prospects" outline close (rewrite to the one real constraint, or cut).
+- **AEO flags (v22.7, review and fix where research allows; never block):**
+  - `generic_references`: each hit is a stand-in ("the law", "the government", "the court", "a scheme", "most plans"). Open `research-brief.md` and look for the real name or number. Found: swap it in ("because the law requires a licence" becomes "because the Motor Vehicles Act, 1988 requires a licence"). Not found: leave the sentence exactly as it is and move on; never fill the gap from memory, and never add a second mention of the regulatory source to clear this flag (C7 wins). For `kind: vague quantity` with no figure in research, the hedge is correct (C1). The `detail` line under this check (share of named things) is information only; do not rewrite to chase the number.
+  - `pronoun_openers`: rewrite the flagged first sentence so it starts with the subject of its heading or FAQ question ("It is the most your policy pays…" becomes "A room rent limit is the most your policy pays…"). Keep the FAQ answer inside 150-300 characters after the change.
 
 Then re-run `validate.py`. All `ai_*` FAIL checks must be clean. The FLAG ones are a human judgment call.
 

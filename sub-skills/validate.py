@@ -194,6 +194,166 @@ def check_regulator_named(body):
     return hits
 
 
+# ---------- v22.7 AEO checks: name the thing (C9) + self-contained openers (F2) ----------
+# Source: the citation studies behind Nectiv's aeo-content-structure-optimizer (cited text is
+# ~20.6% named entities vs 5-8% for normal prose; retrieval scores ~75-word chunks, so a chunk
+# that opens "It ..." has lost its subject). Both checks are FLAG only: they never block publish.
+_AEO_STOP_HEAD = re.compile(r"team to supply|qa block|seo meta|quality score|scorecard", re.I)
+_AEO_SKIP_LINE = re.compile(r"^(last updated|source\b|topic:|\(source)|irdai(ai)? reg|registration no", re.I)
+_AEO_FAQ_Q = re.compile(r"^\s*(?:\d+[.)]\s*)?\*\*(.+?\?)\*\*\s*(.*)$")
+_AEO_NON_ENTITY = set("I The A An This That These Those It If You Your Yes No".split())
+_AEO_PRONOUN_OPEN = re.compile(
+    r"^(?:(?:Yes|No)[,.]?\s+)?(it|this|that|these|those|they|its|their|here|he|she)\b(?!\s+(?:is|are)\s+why\b)",
+    re.I)
+
+
+def _aeo_plain(text):
+    text = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
+    return re.sub(r"[*_`>]", " ", text).strip()
+
+
+def _aeo_blocks(body):
+    """Prose blocks of the article as dicts {heading, level, text, line, first}. `first` marks
+    the first block under its heading (or under an FAQ question line). Blocks that share a
+    `heading` form one section (one FAQ question + its answer is its own section). Headings, table rows,
+    'Last updated', Source lines and the registration footer are not prose and are skipped."""
+    blocks, para, para_line = [], [], 0
+    head, level, first = "", 0, False
+    skip_level = 0        # >0 while inside a QA / SEO-meta / team-to-supply block
+    seen_kt = False
+
+    def flush():
+        nonlocal para, first
+        if para:
+            blocks.append({"heading": head, "level": level, "text": _aeo_plain(" ".join(para)),
+                           "line": para_line, "first": first})
+            first = False
+            para = []
+
+    for i, raw in enumerate(body.splitlines(), 1):
+        ln = raw.strip()
+        m = re.match(r"^(#{1,6})\s+(.*)", ln)
+        if m:
+            flush()
+            lvl = len(m.group(1))
+            if _AEO_STOP_HEAD.search(m.group(2)):
+                if seen_kt:
+                    break                # QA block after Key Takeaways: the article is over
+                skip_level = lvl         # QA block above/inside the article: skip just that block
+                continue
+            if skip_level and lvl > skip_level:
+                continue                 # sub-heading inside the skipped block
+            skip_level = 0
+            if re.search(r"key takeaways", m.group(2), re.I):
+                seen_kt = True
+            head, level, first = m.group(2).strip(), lvl, True
+            continue
+        if skip_level:
+            continue
+        if not ln:
+            flush(); continue
+        if ln.startswith("|") or _AEO_SKIP_LINE.search(_aeo_plain(ln)):
+            continue
+        q = _AEO_FAQ_Q.match(ln)
+        if q:                                   # numbered-list FAQ: "1. **Question?** [answer]"
+            flush()
+            head, level, first = q.group(1).strip(), 4, True
+            if q.group(2).strip():
+                para, para_line = [q.group(2).strip()], i
+            continue
+        if re.match(r"^([-*]|\d+[.)])\s+", ln):  # a list item is its own block
+            flush()
+            para, para_line = [re.sub(r"^([-*]|\d+[.)])\s+", "", ln)], i
+            flush(); continue
+        if not para:
+            para_line = i
+        para.append(ln)
+    flush()
+    return [b for b in blocks if len(b["text"].split()) >= 3]
+
+
+def _aeo_entities(sentence):
+    """Approximate count of named things in a sentence: acronyms, CamelCase, mid-sentence
+    capitalised words, and any token with a digit (years, amounts, percentages)."""
+    toks = [t.rstrip(".,") for t in re.findall(r"[A-Za-z0-9₹][A-Za-z0-9'&.,+/-]*", sentence)]
+    ents = 0
+    for i, t in enumerate(toks):
+        if not t or t in _AEO_NON_ENTITY:
+            continue
+        if re.fullmatch(r"[A-Z]{2,}[0-9]*s?", t) or re.search(r"[a-z][A-Z]", t):
+            ents += 1
+        elif i > 0 and t[0].isupper():
+            ents += 1
+        elif re.search(r"\d", t):
+            ents += 1
+    return ents, len(toks)
+
+
+def check_generic_references(body, patterns):
+    """v22.7 FLAG (canon C9). A vague stand-in ('the law', 'the government', 'most plans')
+    where the research brief may hold the real name or number. One hit per phrase per
+    paragraph. A phrase is fine when the thing is already named (`unless`) in the SAME
+    paragraph, or, for entries with "scope": "section", anywhere under the same heading."""
+    hits = []
+    blocks = _aeo_blocks(body)
+    section_text = {}
+    for b in blocks:
+        section_text[b["heading"]] = section_text.get(b["heading"], b["heading"]) + " " + b["text"]
+    seen = set()
+    for b in blocks:
+        for k, e in enumerate(patterns):
+            m = re.search(e["pattern"], b["text"], re.I)
+            if not m:
+                continue
+            by_section = e.get("scope") == "section"
+            named_in = section_text[b["heading"]] if by_section else b["text"]
+            if e.get("unless") and re.search(e["unless"], named_in):
+                continue
+            if by_section:
+                if (k, b["heading"]) in seen:
+                    continue             # one flag per section is enough
+                seen.add((k, b["heading"]))
+            hits.append({"line": b["line"], "phrase": m.group(0), "kind": e.get("kind", ""),
+                         "text": b["text"][:130], "fix": e.get("fix", "")})
+    return hits
+
+
+def entity_share(body):
+    """v22.7 INFO ONLY, no threshold. Share of words that are named things, and share of
+    sentences that name nothing. Printed so the team can watch the trend across articles."""
+    ents = toks = sents = empty = 0
+    for b in _aeo_blocks(body):
+        for sent in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(])", b["text"]):
+            if len(sent.split()) < 3:
+                continue
+            e, n = _aeo_entities(sent)
+            ents += e; toks += n; sents += 1
+            empty += 0 if e else 1
+    if not toks:
+        return {}
+    return {"named_things_pct_of_words": round(100.0 * ents / toks, 1),
+            "sentences_naming_nothing_pct": round(100.0 * empty / max(sents, 1)),
+            "sentences": sents,
+            "note": "info only, no pass mark; approximate count (names, acronyms, numbers)"}
+
+
+def check_pronoun_openers(body):
+    """v22.7 FLAG (canon F2). The first sentence under a heading or an FAQ question must name
+    its subject. 'It is the most your policy pays...' means nothing once an AI lifts the
+    answer out of the page; 'A room rent limit is the most...' still does."""
+    hits = []
+    for b in _aeo_blocks(body):
+        if not b["first"] or b["level"] < 2 or re.search(r"key takeaways", b["heading"], re.I):
+            continue
+        m = _AEO_PRONOUN_OPEN.match(b["text"])
+        if m:
+            hits.append({"line": b["line"], "under": b["heading"][:70],
+                         "opener": " ".join(b["text"].split()[:14]),
+                         "fix": "open with the subject named in the heading, not '%s'" % m.group(1)})
+    return hits
+
+
 STOPWORDS = set("""a an the and or but if then else of to in on at by for with from into over under
 again further once is are was were be been being have has had do does did this that these those it its
 their there here you your yours we our ours they them he she his her as so than too very can will just
@@ -2247,6 +2407,12 @@ def main():
     add("source_quality", "Source quality — primary over aggregator summary", "FLAG", check_source_quality(body))
     add("authority_overcite", "IRDAI mentioned at most %d time (C/v19)" % cfg.get("authority_mention_max", 1), "FAIL", check_authority_overcite(body, cfg.get("authority_mention_max", 1)))
     add("regulator_named", "Name IRDAI, don't say 'the regulator' (C7)", "FLAG", check_regulator_named(body))
+    # v22.7 AEO: both FLAG only. entity_share rides along as an info-only detail (no threshold).
+    add("generic_references", "Name the thing: no vague stand-ins like 'the law' / 'most plans' (C9/v22.7)", "FLAG",
+        check_generic_references(body_prose, S.get("generic_reference_patterns", [])),
+        extra={"detail": entity_share(body_prose)})
+    add("pronoun_openers", "Section and FAQ openers name their subject, not 'It/This' (F2/v22.7)", "FLAG",
+        check_pronoun_openers(body_prose))
     add("bare_qualifier_headings", "Policy-type qualifier in heading must name the product (B2)", "FLAG", check_bare_qualifier_headings(body))
     add("third_person", "Body in second person — no 'the reader' (A1)", "FLAG", check_third_person(body))
     add("faq_answers", "FAQ answers 150-300 chars (F1)", "FLAG", check_faq_answers(body))
@@ -2456,7 +2622,7 @@ def main():
         print(f"[{mark.get(c['status'],'?')}] {c['status']:7} {c['name']}")
         for h in (c.get("hits") or [])[:8]:
             print(f"        - {h}")
-        if c["id"] in ("readability", "vale") and isinstance(c.get("detail"), dict):
+        if c["id"] in ("readability", "vale", "generic_references") and c.get("detail") and isinstance(c.get("detail"), dict):
             print(f"        {c['detail']}")
         if c.get("note"):
             print(f"        ({c['note']})")

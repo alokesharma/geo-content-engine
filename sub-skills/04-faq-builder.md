@@ -93,6 +93,8 @@ For each question:
 
 - Word count: 150-300 characters (BLUF: first sentence answers the question). Hard limit. Anything longer belongs in the body.
 - Self-contained: makes sense without re-reading the question
+- **Subject-first opener (v22.7, canon F2):** the answer's first sentence starts with the thing the question asks about, never with It / This / That / They / These / Those, and never "Yes, it…" / "No, it…". Write "A room rent limit is the most your policy pays per day…", not "It is the most your policy pays per day…". The validator FLAGs pronoun openers (`pronoun_openers`).
+- **Name the thing (v22.7, canon C9):** if the research brief names the Act, scheme, court or body behind the answer, use the name instead of "the law" / "a scheme". Name only; still no section, clause or circular numbers in an FAQ answer.
 - Specific: includes a number from `research-brief.md` where available; hedge with "typically" / "in most plans" when no specific number exists
 - AEO-fresh: different sentence structure AND at least one different specific (number, example, or angle) compared to the body's coverage of the same fact. Same SEO benefit (FAQ schema still fires); no duplicate-content penalty.
 - No regulatory citations inside answers. If the body cites a regulator or standards body's clauses, the FAQ may reference that source by name only, not by clause/circular number (per content_rules.md Rule #23).

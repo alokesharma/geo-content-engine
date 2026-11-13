@@ -7,6 +7,10 @@ description: End-to-end GEO content engine. Takes a topic and produces a researc
 
 > **What this is.** A production content pipeline that researches a topic against live SERP and AI-answer data, drafts an article grounded in that research, and refuses to ship it unless it passes a strict anti-AI-writing gate (`sub-skills/validate.py` + `sub-skills/style.json`, informed by Wikipedia's *Signs of AI writing*, `WP:AISIGNS`). It was built and battle-tested in production, generating hundreds of published articles. The `canon/` files are example rules; replace them with your own brand's.
 >
+> **v22.7 update (2026-11-13): two AEO checks, FLAG only.** Based on published studies of which text LLM answer engines cite. (1) `generic_references` (canon C9): flags stand-ins like "the law", "the government", "most plans" so the writer swaps in the real Act, scheme, court, year or number from the research brief; the list is editable in `sub-skills/style.json` under `generic_reference_patterns`. It also prints the article's share of named things as information only, with no pass mark. (2) `pronoun_openers` (canon F2): flags FAQ answers and section openers that start with It/This/They. Neither blocks publish; a name may only come from `research-brief.md`.
+>
+> **v22.7 update (2026-11-13): Jina Reader scrape tier.** Competitor pages that fail WebFetch now go through `sub-skills/jina_fetch.py` (Jina Reader, `https://r.jina.ai/`; optional `JINA_API_KEY`, works without one at a lower rate limit) before Playwright. The old "skip known-block domains" rule is retired: those domains go straight to Jina. In production testing 14 of 15 previously blocked URLs were read.
+>
 > **v22 updates (2026-07-14):**
 > 1. **Reddit → Arctic Shift.** The community-signal sub-step (research/01) now pulls real post + comment bodies from the Arctic Shift public archive API (no auth, not IP-blocked) instead of SerpAPI `site:reddit.com` snippets. The API requires a `subreddit` param alongside `query`; SerpAPI reddit snippets remain the automatic fallback if Arctic Shift is unreachable.
 > 2. **Comparison tables.** Comparison topics (`X vs Y`, `difference between…`) now get exactly one research-sourced comparison table (planned in outline/02, written in draft/03), rendered as a real Doc table. **The facts come from research but every cell is written in Acme's own words — never copy a competitor's table verbatim (plagiarism/copyright).** The validator excludes table rows from the prose word-count and register checks (tables are structured data), while the anti-AI literal checks still apply.
@@ -74,7 +78,7 @@ Create a session folder: `runs/<YYYY-MM-DD>-<slug-of-topic>/`
 ### Phase 1 — Research
 
 1. Read `sub-skills/01-research-flow.md` in full.
-2. Execute the six sub-steps described there: Keyword + SERP intelligence (Ahrefs API v3, hardcoded token), PAA + zero-volume fallback (SerpAPI, hardcoded key), Competitor depth (WebFetch + Playwright), Community signal (Reddit JSON + WebSearch), Acme context + URL graph (WebSearch site:acme.com + optional GSC), and Data enrichment (citable stats).
+2. Execute the six sub-steps described there: Keyword + SERP intelligence (Ahrefs API v3, key from the environment), PAA + zero-volume fallback (SerpAPI, key from the environment), Competitor depth (WebFetch, then Jina Reader via `sub-skills/jina_fetch.py`, then Playwright), Community signal (Reddit JSON + WebSearch), Acme context + URL graph (WebSearch site:acme.com + optional GSC), and Data enrichment (citable stats).
 3. Bundle the outputs into `research-brief.md` per the structure specified in the sub-skill file.
 4. Write `research-execution.json` capturing PASS/FAIL/PARTIAL/SKIPPED status for each sub-step.
 5. Halt if Sub-step 1 or 2 fails (no SERP data possible).

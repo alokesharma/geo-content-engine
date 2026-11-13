@@ -1,6 +1,6 @@
 ---
 name: research-flow
-description: Bundled research skill (v20.5 PRODUCTION). Calls SerpAPI (India geo) for SERP num=20, AI Mode, Forums, News, Videos; Ahrefs (limit=10) for related terms + question terms; WebFetch+Playwright for competitor depth; Reddit JSON for community signal; GSC MCP for Acme URL graph. AI Overview retired (v12 #76 -- AI Mode is the BLUF signal). Outputs research-brief.md.
+description: Bundled research skill (v20.5 PRODUCTION). Calls SerpAPI (India geo) for SERP num=20, AI Mode, Forums, News, Videos; Ahrefs (limit=10) for related terms + question terms; WebFetch + Jina Reader + Playwright for competitor depth; Reddit JSON for community signal; GSC MCP for Acme URL graph. AI Overview retired (v12 #76 -- AI Mode is the BLUF signal). Outputs research-brief.md.
 ---
 
 # research-flow
@@ -30,6 +30,7 @@ First stage of any pipeline run, before any Generate skill. Also usable standalo
 
 ```
 SERPAPI_KEY        = os.environ["SERPAPI_KEY"]         # serpapi.com dashboard
+JINA_API_KEY       = os.environ.get("JINA_API_KEY", "")  # optional: jina.ai Reader, competitor scraping; works without a key at a lower rate limit
 AHREFS_API_TOKEN   = os.environ["AHREFS_API_TOKEN"]    # Ahrefs dashboard -> API (only if you call the REST API directly)
 ```
 
@@ -92,8 +93,13 @@ Goal: **5 fully-read competitor articles.** Not 5 attempts — 5 successes. Work
 
 **v22.6 perf — fetch in BATCHES, never one at a time (this sub-step used to cost ~3 min; batching cuts it to under 1):**
 1. **Batch 1 — parallel WebFetch.** Take the top 7 SERP candidates (over-fetch 2 to absorb failures) and issue ALL 7 `WebFetch` calls in a SINGLE message so they run in parallel. Accept every result with ≥500 words of body text.
-2. **Batch 2 — ONE Playwright launch for all failures.** Collect the URLs that returned <500 words, errored, 403'd, or timed out, and run the batch helper below on all of them in one go. Do NOT launch a browser per URL, and do NOT skip to "Playwright unavailable" — actually execute this code. Playwright is installed and verified.
-3. **Still short of 5?** (hard anti-bot like a Cloudflare challenge on some URLs) — mark those `blocked`, take the next 2-3 SERP results (#8, #9…) as another parallel batch, and repeat until 5 URLs are successfully read.
+2. **Batch 2 — Jina Reader for every WebFetch failure (v22.7).** Collect the URLs that returned <500 words, errored, 403'd, or timed out, and send ALL of them through Jina in ONE command:
+   ```bash
+   python3 sub-skills/jina_fetch.py --out runs/<run-id> "<url1>" "<url2>" ...
+   ```
+   It fetches them in parallel via `https://r.jina.ai/` (reads `JINA_API_KEY` from the environment if set; works without one at a lower rate limit), writes `runs/<run-id>/jina-<n>.md` (clean markdown, headings kept as `#`/`##`/`###`) for each success, and prints a JSON list with `ok`, `words`, `h2`, `mode`, `file` or `reason` per URL. Treat every `"ok": true` as a successful read: Read the `jina-<n>.md` file and extract from it exactly as you would from a WebFetch result. Do NOT call `r.jina.ai` by hand and do NOT skip this step. In production testing, 14 of 15 URLs that earlier runs had recorded as blocked (insurer and aggregator sites, a news site, a forum) were read this way, in about a minute total.
+3. **Batch 3 — ONE Playwright launch for whatever Jina also failed.** Only the URLs with `"ok": false` in the Jina output go here. Run the batch helper below on all of them in one go. Do NOT launch a browser per URL, and do NOT skip to "Playwright unavailable" — actually execute this code. Playwright is installed and verified.
+4. **Still short of 5?** (hard anti-bot like a Cloudflare challenge on some URLs) — mark those `blocked`, take the next 2-3 SERP results (#8, #9…) as another parallel batch, and repeat until 5 URLs are successfully read.
 
 **Playwright batch helper — run this exact code (do not improvise):**
 ```python
@@ -132,7 +138,7 @@ Run it via the same `python3` confirmed to have Playwright (`python3 -c "import 
 
 **Comparison topics (v22):** if the topic is a comparison (`vs` / `versus` / `difference between` / `X or Y`), also capture the factor-by-factor contrast facts (weight, cost, coverage, eligibility, etc.) — note them as plain facts, and if a competitor page has a comparison table, record the *facts* it conveys, NOT its wording. Save to `comparison-facts.md`. The draft paraphrases these into Acme's own comparison table (never copy a competitor table verbatim — that is plagiarism). Corroborate each fact across ≥2 sources where possible.
 
-**Also save the CLEAN body text (v21 — for the length target).** For each successful read, save the article's main body (boilerplate removed) to `competitor-N-body.txt`. Use `trafilatura` if available (`python3 -c "import trafilatura; print(trafilatura.extract(html))"`) — it strips nav/header/footer/sidebar and returns just the article. If trafilatura isn't installed, use the WebFetch markdown (already largely de-chromed) and count that; do NOT use raw Playwright `inner_text("body")` for the count (it includes the whole nav/footer and inflates word counts). This file is what makes the competitor word count honest.
+**Also save the CLEAN body text (v21 — for the length target).** For each successful read, save the article's main body (boilerplate removed) to `competitor-N-body.txt`. Use `trafilatura` if available (`python3 -c "import trafilatura; print(trafilatura.extract(html))"`) — it strips nav/header/footer/sidebar and returns just the article. If trafilatura isn't installed, use the WebFetch markdown (already largely de-chromed) and count that. For a Jina read, use the `jina-<n>.md` text: with `"mode": "stripped"` it is already de-chromed, with `"mode": "raw"` or `"browser"` cut the nav/menu lines before the H1 and the footer lines after the last article section first; do NOT use raw Playwright `inner_text("body")` for the count (it includes the whole nav/footer and inflates word counts). This file is what makes the competitor word count honest.
 
 ### Sub-step 3c — Compute the length + coverage target (v21)
 
@@ -142,7 +148,7 @@ python3 sub-skills/length_target.py runs/<run-id>
 ```
 It reads `competitor-N.md` (H2 counts) + `competitor-N-body.txt` (clean body words), takes the **median** of each (median, not mean — one long outlier shouldn't skew the target), and writes `length-target.json` with: the word-count band (median ×0.85–1.25, clamped to floor 800 / ceiling 2800), the **section_target** (median competitor H2 count), and a per-section word cap. The draft and validator both read this file. If no competitor body was captured it writes a safe default band and says so. **Length is a byproduct of coverage — the article hits the section_target with real, grounded sections; it is never padded to a word number.**
 
-**Hard rule:** if after exhausting the top ~10 SERP results fewer than 5 reads succeed, record the count and the per-URL failure reason in the status — but the strong default is 5 successful reads. Backfilling to lower-ranked results is expected and correct; the top 5 are preferred but not mandatory if a specific site hard-blocks even Playwright.
+**Hard rule:** if after exhausting the top ~10 SERP results fewer than 5 reads succeed, record the count and the per-URL failure reason in the status — but the strong default is 5 successful reads. Backfilling to lower-ranked results is expected and correct; the top 5 are preferred but not mandatory if a specific site hard-blocks WebFetch, Jina and Playwright. In `research-execution.json`, record which method read each competitor (`webfetch` / `jina` / `playwright`).
 
 ### Sub-step 4 — Community signal
 
@@ -244,9 +250,9 @@ Also write `research-execution.json` with the status of each sub-step (PASS / FA
 
 ## v20.6.4 RUNTIME OPTS (target: 1-1.5hr -> 30-45min total)
 
-### R5 -- Skip Playwright on known-block domains
+### R5 -- Known-block domains go straight to Jina (v22.7)
 
-DO NOT attempt Playwright fallback on policybazaar.com or bankbazaar.com. They consistently 403 / hit WAF. Record `SKIPPED -- WAF blocked (known)` without retry. Saves 60-120s per URL.
+Some domains in every niche consistently 403 / hit a WAF on WebFetch and Playwright (in the original deployment these were the two largest insurance aggregators), but Jina Reader reads them. Keep your own short list. Do NOT skip them (the old `SKIPPED -- WAF blocked (known)` rule is retired): leave them out of the WebFetch batch and put them directly in the `jina_fetch.py` command. If Jina also fails on one, do NOT try Playwright on it; record `blocked (jina failed: <reason>)` and backfill from the SERP.
 
 ### R1 + R2 + R7 -- Parallelize INDEPENDENT tool calls
 
@@ -258,7 +264,8 @@ When multiple tool calls in the same phase have NO output dependency between the
 
 **Phase 2 competitor scrapes (saves 60-90s):**
 - All 5-6 publisher URLs to WebFetch in ONE message as parallel tool calls.
-- Any Playwright fallbacks batched in the NEXT message (also parallel).
+- WebFetch failures go to ONE `jina_fetch.py` command in the NEXT message (it parallelises internally).
+- Only Jina failures go to the Playwright batch after that.
 
 **Phase 5 (GSC) + Phase 7 (SEO meta) + Phase 8 (lineage) (saves 30-60s):**
 - These have no input dependency on each other after draft is final. Run in parallel batches.
